@@ -9,7 +9,7 @@ from torchvision import transforms, models
 
 
 
-def load_image(img_path, max_size=400, shape=None):
+def load_image(img_path, max_size=500, shape=None):
     ''' Load in and transform an image, making sure the image is <= 400 pixels in the x-y dims.'''
     
     image = Image.open(img_path).convert('RGB')
@@ -126,16 +126,16 @@ if __name__ == '__main__':
 
 
     ########################## DISPLAY IMAGE#########################################################""
-    content = load_image('data/montagne_small.jpg').to(device)
-    style = load_image('data/peinture1_small.jpg', shape=content.shape[-2:]).to(device)
+    content = load_image('data/i.jpg').to(device)
+    style = load_image('data/p.jpg', shape=content.shape[-2:]).to(device)
 
-    imshow(im_convert(content))
-    imshow(im_convert(style))
+    # imshow(im_convert(content))
+    # imshow(im_convert(style))
 
-    _, d, h, w = content.size()
-    print("content size=",d,h,w)
-    _, d, h, w = style.size()
-    print("style size=",d,h,w)
+    # _, d, h, w = content.size()
+    # print("content size=",d,h,w)
+    # _, d, h, w = style.size()
+    # print("style size=",d,h,w)
 
 
     # get content and style features only once before training
@@ -143,10 +143,10 @@ if __name__ == '__main__':
     style_features = get_features(style, vgg)
     print(type(content_features))
     for key, value in content_features.items():
-        print("key=",key)
-        print("value shape=", type(value))
+        # print("key=",key)
+        # print("value shape=", type(value))
         vnp = value.to("cpu").clone().detach().numpy()
-        print("value shape=", vnp.shape)
+        # print("value shape=", vnp.shape)
 
 
 
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     style_grams = {layer: gram_matrix(style_features[layer]) for layer in style_features}           # dict with each gram matrix for each feature name
     style_layers = {  'conv0', 'conv5', 'conv10', }
 
-    for i in range(20000):
+    for i in range(20001):
         content_features = get_features(target, vgg)
         style_features = get_features(target, vgg)
         target_features = get_features(target, vgg)
@@ -168,13 +168,12 @@ if __name__ == '__main__':
         content_loss = torch.mean((target_features['conv19'] - content_features['conv19'])**2)
         
         style_loss = 0
-        for layer in style_layers:
-            target_feature = target_features[layer]
-            target_gram = gram_matrix(target_feature)
-            _, d, h, w = target_feature.shape
-            style_gram = style_grams[layer]
-            layer_style_loss = torch.mean((target_gram - style_gram)**2)
-            style_loss += layer_style_loss / (d * h * w)
+        target_grams = {layer: gram_matrix(target_features[layer]) for layer in target_features}           # dict with each gram matrix for each feature name
+        #for key, value in style_features.items():
+        for key in style_layers:
+            #d, hw = style_grams[key].shape
+            style_loss  +=  torch.mean((style_grams[key] - target_grams[key])**2)  #/ (d * hw)
+        style_loss /= len(style_layers)
 
         
         total_loss =  0.5*content_loss + 0.5*style_loss
@@ -185,9 +184,9 @@ if __name__ == '__main__':
 
 
 
-        print('Total loss: ', i, total_loss.item())
+        
         if  i % show_every == 0:
-            #imshow(im_convert(target))
+            print('Total loss: ', i, total_loss.item())
             if i % save_every == 0:
                 plt.imsave("data/output"+str(i)+".png", im_convert(target))
                 print("save %d" % i)
