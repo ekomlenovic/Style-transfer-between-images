@@ -6,7 +6,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torchvision import transforms, models
-
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
 
 def load_image(img_path, max_size=500, shape=None):
@@ -106,6 +107,9 @@ def gram_matrix(tensor):
 
 if __name__ == '__main__':
 
+    current_time = datetime.now().strftime("%d_%H_%M")
+    writer = SummaryWriter(f'runs/style_transfer_{current_time}')
+
     ##########################" VGG "#########################################################""
     # get the "features" portion of VGG19 (we will not need the "classifier" portion)
     vgg = models.vgg19(weights=models.VGG19_Weights.DEFAULT).features
@@ -127,7 +131,7 @@ if __name__ == '__main__':
 
     ########################## DISPLAY IMAGE#########################################################""
     content = load_image('data/i.jpg').to(device)
-    style = load_image('data/p.jpg', shape=content.shape[-2:]).to(device)
+    style = load_image('data/s.jpg', shape=content.shape[-2:]).to(device)
 
     # imshow(im_convert(content))
     # imshow(im_convert(style))
@@ -182,11 +186,13 @@ if __name__ == '__main__':
         total_loss.backward()
         optimizer.step()
 
-
-
         
         if  i % show_every == 0:
             print('Total loss: ', i, total_loss.item())
+            writer.add_scalar('Loss/total', total_loss.item(), i)
             if i % save_every == 0:
                 plt.imsave("data/output"+str(i)+".png", im_convert(target))
+                writer.add_image('Generated Image', torch.tensor(im_convert(target)), global_step=i, dataformats='HWC')
                 print("save %d" % i)
+        
+    writer.close()
