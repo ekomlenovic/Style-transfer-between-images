@@ -2,7 +2,7 @@
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-
+from tqdm import tqdm
 import torch
 import torch.optim as optim
 from torchvision import transforms, models
@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # move the model to GPU, if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
+    print("Using ", device)
     vgg.to(device)
 
     features = list(vgg)[:23]
@@ -158,41 +158,38 @@ if __name__ == '__main__':
 
 
 
-    show_every = 100
-    save_every = 1000
     optimizer = optim.Adam([target], lr=0.003)
     style_grams = {layer: gram_matrix(style_features[layer]) for layer in style_features}           # dict with each gram matrix for each feature name
     style_layers = {  'conv0', 'conv5', 'conv10', }
 
-    for i in range(20001):
-        content_features = get_features(target, vgg)
-        style_features = get_features(target, vgg)
-        target_features = get_features(target, vgg)
-    
-        content_loss = torch.mean((target_features['conv19'] - content_features['conv19'])**2)
-        
-        style_loss = 0
-        target_grams = {layer: gram_matrix(target_features[layer]) for layer in target_features}           # dict with each gram matrix for each feature name
-        #for key, value in style_features.items():
-        for key in style_layers:
-            #d, hw = style_grams[key].shape
-            style_loss  +=  torch.mean((style_grams[key] - target_grams[key])**2)  #/ (d * hw)
-        style_loss /= len(style_layers)
+    show_every = 100
+    save_every = 1000
+    total_iterations = 20001
 
-        
-        total_loss =  0.5*content_loss + 0.5*style_loss
-    
-        optimizer.zero_grad()
-        total_loss.backward()
-        optimizer.step()
+    with tqdm(total=total_iterations) as pbar:
+        for i in range(total_iterations):
+            target_features = get_features(target, vgg)
+            content_loss = torch.mean((target_features['conv19'] - content_features['conv19'])**2)
 
-        
-        if  i % show_every == 0:
-            print('Total loss: ', i, total_loss.item())
-            writer.add_scalar('Loss/total', total_loss.item(), i)
-            if i % save_every == 0:
-                plt.imsave("data/output"+str(i)+".png", im_convert(target))
-                writer.add_image('Generated Image', torch.tensor(im_convert(target)), global_step=i, dataformats='HWC')
-                print("save %d" % i)
+            style_loss = 0
+            target_grams = {layer: gram_matrix(target_features[layer]) for layer in style_layers}
+            for key in style_layers:
+                style_loss += torch.mean((style_grams[key] - target_grams[key])**2)
+            style_loss /= len(style_layers)
+
+            total_loss = 0.5 * content_loss + 0.5 * style_loss
+
+            optimizer.zero_grad()
+            total_loss.backward()
+            optimizer.step()
+
+            if i % show_every == 0:
+                writer.add_scalar('Loss/total', total_loss.item(), i)
+                if i % save_every == 0:
+                    plt.imsave(f"data/output_{i}.png", im_convert(target))
+                    writer.add_image('Generated Image', torch.tensor(im_convert(target)), global_step=i, dataformats='HWC')
+           
+            pbar.set_description(f"Iteration {i}/{total_iterations} - Loss: {total_loss.item():.4f}")
+            pbar.update(1)
         
     writer.close()
