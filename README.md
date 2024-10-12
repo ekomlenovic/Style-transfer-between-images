@@ -70,7 +70,7 @@ $$
 
 ## Notes
 
-- Make sure the necessary libraries (PyTorch, torchvision, PIL, matplotlib, numpy) are installed before running the script.
+- Make sure the necessary libraries (PyTorch, torchvision, PIL, matplotlib, numpy, tqdm, tensorboard) are installed before running the script.
 - You can install the environment using the provided `environment.yml` file.
 ```bash
 conda env create -f environment.yml
